@@ -1,0 +1,1 @@
+# keystone-adapter-knex-migrations

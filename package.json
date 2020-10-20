@@ -1,0 +1,18 @@
+{
+  "name": "keystone-adapter-knex-migrations",
+  "version": "1.0.0",
+  "description": "Extends the knex adapter to provide a migrations command line tool",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "josemf",
+  "license": "ISC",
+  "bin": {
+    "keystone": "bin/cli.js"
+  },
+  "dependencies": {
+    "@keystonejs/adapter-knex": "^12.0.0",
+    "@keystonejs/keystone": "^17.0.0"
+  }
+}
