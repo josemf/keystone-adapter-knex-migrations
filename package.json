@@ -9,7 +9,7 @@
   "author": "josemf",
   "license": "ISC",
   "bin": {
-    "keystone": "bin/cli.js"
+    "keystone-knex": "bin/cli.js"
   },
   "dependencies": {
     "@keystonejs/adapter-knex": "^12.0.0",
