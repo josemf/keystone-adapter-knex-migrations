@@ -19,7 +19,7 @@ const doMigrations = async (args, entryFile, spinner) => {
         }
         try {
             console.log('Executing list migration files...');
-            await adapter.doMigrations();
+            await adapter.doMigrations(spinner);
         } catch (e) {
             spinner.fail(chalk.red.bold(`Some error occurred`));
             console.log(e);
@@ -27,7 +27,7 @@ const doMigrations = async (args, entryFile, spinner) => {
         }
     });
     if (!errors) {
-        spinner.succeed(chalk.green.bold(`List migration files executed`));
+        spinner.succeed(chalk.green.bold(`Done.`));
         process.exit(0);
     }
     process.exit(1);

@@ -18,8 +18,7 @@ const createMigrations = async (args, entryFile, spinner) => {
             return;
         }
         try {
-            console.log('Creating list migration files...');
-            await adapter.createMigrations();
+            await adapter.createMigrations(spinner);
         } catch (e) {
             spinner.fail(chalk.red.bold(`Some error occurred`));
             console.log(e);
@@ -27,7 +26,7 @@ const createMigrations = async (args, entryFile, spinner) => {
         }
     });
     if (!errors) {
-        spinner.succeed(chalk.green.bold(`List migration files created`));
+        spinner.succeed(chalk.green.bold(`Done.`));
         process.exit(0);
     }
     process.exit(1);
