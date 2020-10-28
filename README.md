@@ -315,10 +315,11 @@ This implementation is not complete at the moment, what is working right now:
 * Update field in list
 * Drop field in list
 * New relationships &mdash; full keystone 1:1, 1:N, N:1, N:N support
+* Dropping relationships &mdash; full keystone 1:1, 1:N, N:1, N:N support
 
 Things we would like to implement here (and I think is important):
 
-* Full relationship support &mdash; currently rename, update and drop are not supported
+* Full relationship support &mdash; currently rename, update are not supported
 * Table (schemas) rename &mdash; might build an heuristic for detecting a list name change
 * Seeding integration
 

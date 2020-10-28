@@ -10,7 +10,7 @@ const MIGRATIONS_SCHEMA_FILE_PATH = './compiled/schema.json';
 const DEFAULT_CACHE_SCHEMA_TABLE_NAME = "InternalSchema";
 
 class KnexAdapterExtended extends KnexAdapter {
-
+ 
     constructor({ knexOptions = {}, knexMigrationsOptions = {}, schemaName = 'public' } = {}) {
         super({ knexOptions, schemaName });
 
@@ -21,8 +21,8 @@ class KnexAdapterExtended extends KnexAdapter {
         }, knexMigrationsOptions);
     }
 
-    async createMigrations(spinner) {
-
+    async createMigrations(spinner) { 
+        
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {
             cacheSchemaTableName: DEFAULT_CACHE_SCHEMA_TABLE_NAME,
             spinner
