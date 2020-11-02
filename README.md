@@ -316,12 +316,19 @@ This implementation is not complete at the moment, what is working right now:
 * Drop field in list
 * New relationships &mdash; full keystone 1:1, 1:N, N:1, N:N support
 * Dropping relationships &mdash; full keystone 1:1, 1:N, N:1, N:N support
+* Renaming relationships &mdash; full keystone 1:1, 1:N, N:1, N:N support
 
 Things we would like to implement here (and I think is important):
 
-* Full relationship support &mdash; currently rename, update are not supported
+* Full relationship support &mdash; currently update cardinality is not supported
 * Table (schemas) rename &mdash; might build an heuristic for detecting a list name change
 * Seeding integration
+
+## Known Bugs
+
+I will be updating this list for things I found not to be working properly but I don't want to tackle right way because they seem less priority
+
+* Renaming self referring relationships is not working for all relationships that have back referring. This is the cases when for example we want to have two fields that act as referring to the list they belong, like we would to to implement hierarchical categories with `parent` and `childCategories` 
 
 Thanks :pizza:
 
