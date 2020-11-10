@@ -1,8 +1,12 @@
 # Keystone knex adapter with migrations support
 
-
-
 This adapter extends the original Knex adapter developed within Keystone monorep and available at https://github.com/keystonejs/keystone/tree/master/packages/adapter-knex.
+
+## What is this
+
+Database migrations allows you to iteratively build your CMS objects and implement database schema changes iteratively without having to write database DDL code by hand. 
+
+We implement database migrations for the existing Knex database provider by extending the Knex plugin class, this guarantees every previously available feature will be present, and includes a database migrations layer on top. The migrations we implement are generated from the current and past Keystone list schemas, which mean you wont have to manually write any migration code.
 
 It provides the following commands:
 
@@ -10,9 +14,28 @@ It provides the following commands:
 
 `$ npx keystone-knex migrations-do` &mdash; Uses any migrations defined in the migrations folder and applies one by one to the database schema.
 
-!! WORD OF ATTENTION !!
+## What works
 
-This is still highly experimental and should be used with care. If you're going to use this tool in a production database system <u>please perform a backup</u> first.
+!! WORD OF CAUTION !!
+
+This is still highly experimental and should be used with care. If you're going to use this tool in a production database system <u>please perform a backup</u> first. That said we would love to have people using this tool and reporting bugs or having feature requests.
+
+Our goal soon is to implement proper unit testing to the code, hang on tight.
+
+A lot of things works as of now:
+
+* List migrations:
+  * New lists will be created on the database
+  * Removed lists from code will be removed from the database
+* Field migrations:
+  * Adding fields to lists will add the respective columns to the database
+  * Remove fields from lists will remove the respective columns in the database
+  * Renaming fields from lists will rename the respective columns in the database
+  * Changing fields configuration like changing the field type or making the field `isRequired`, `isUnique` etc, will change the respective columns in the database
+* Relationship migrations:
+  * Adding relationships in lists will have this relationships mapped on the database using foreign keys columns or pivot tables depending on the cardinality
+  * Changing relationship configurations like `isRequired` will have that change reflected onto the column foreign key
+  * Changing relationship cardinalities will have database schema changes to be applied in a way that data is saved in the best way possible
 
 ## Simple steps
 
@@ -303,26 +326,6 @@ $ npx keystone-knex migrations-do
 ```
 
 
-
-## What is Implemented and Roadmap
-
-This implementation is not complete at the moment, what is working right now:
-
-* New lists
-* Drop lists
-* Add field to list
-* Rename field in list
-* Update field in list
-* Drop field in list
-* New relationships &mdash; full keystone 1:1, 1:N, N:1, N:N support
-* Dropping relationships &mdash; full keystone 1:1, 1:N, N:1, N:N support
-* Renaming relationships &mdash; full keystone 1:1, 1:N, N:1, N:N support
-
-Things we would like to implement here (and I think is important):
-
-* Full relationship support &mdash; currently update cardinality is not supported
-* Table (schemas) rename &mdash; might build an heuristic for detecting a list name change
-* Seeding integration
 
 ## Known Bugs
 
