@@ -31,9 +31,21 @@ class KnexAdapterExtended extends KnexAdapter {
         const { migrations, schema } = await builder.build();
         
         fs.writeFileSync(this._knexMigrationsOptions.migrationsFilePath, JSON.stringify(migrations));
-        fs.writeFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, JSON.stringify(schema));        
+        fs.writeFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, JSON.stringify({ schema }));        
     }
 
+    async rollbackMigrations(spinner) {
+        const builder = new MigrationBuilder(this.listAdapters, this.knex, {
+            cacheSchemaTableName: DEFAULT_CACHE_SCHEMA_TABLE_NAME,
+            spinner
+        });
+
+        const { migrations, schema, id } = await builder.buildRollback();
+        
+        fs.writeFileSync(this._knexMigrationsOptions.migrationsFilePath, JSON.stringify(migrations));
+        fs.writeFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, JSON.stringify({ schema, id }));                
+    }
+    
     async doMigrations(spinner) {
 
         if(!fs.existsSync(this._knexMigrationsOptions.migrationsFilePath)) {
@@ -47,13 +59,14 @@ class KnexAdapterExtended extends KnexAdapter {
         }        
 
         const migrations = JSON.parse(fs.readFileSync(this._knexMigrationsOptions.migrationsFilePath, "utf-8"));
-        const schema = fs.readFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, "utf-8");
+        const schema = JSON.parse(fs.readFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, "utf-8"));
         
         const execution = new MigrationExecution(this.listAdapters, this.knex, {
             cacheSchemaTableName: this._knexMigrationsOptions.schemaTableName,
             spinner
         });
-        await execution.apply(migrations, schema);
+        
+        await execution.apply(migrations, JSON.stringify(schema.schema), schema.id);
     }
 }
 
