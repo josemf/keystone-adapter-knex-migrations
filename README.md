@@ -20,8 +20,6 @@ It provides the following commands:
 
 This is still highly experimental and should be used with care. If you're going to use this tool in a production database system <u>please perform a backup</u> first. That said we would love to have people using this tool and reporting bugs or having feature requests.
 
-Our goal soon is to implement proper unit testing to the code, hang on tight.
-
 A lot of things works as of now:
 
 * List migrations:
@@ -36,6 +34,12 @@ A lot of things works as of now:
   * Adding relationships in lists will have this relationships mapped on the database using foreign keys columns or pivot tables depending on the cardinality
   * Changing relationship configurations like `isRequired` will have that change reflected onto the column foreign key
   * Changing relationship cardinalities will have database schema changes to be applied in a way that data is saved in the best way possible
+
+Other things are not quite right:
+
+* It's currently not possible to change from content fields to relationship fields and vice versa
+* There are no rollback migrations &mdash; I expect to work on this soon
+* You can't rename lists yet
 
 ## Simple steps
 
