@@ -6,11 +6,9 @@ This adapter extends the original Knex adapter developed within Keystone monorep
 
 Database migrations allows you to iteratively build your CMS objects and implement database schema changes iteratively without having to write database DDL code by hand. 
 
-We implement database migrations for the existing Knex database provider by extending the Knex plugin class, this guarantees every previously available feature will be present, and includes a database migrations layer on top. The migrations we implement are generated from the current and past Keystone list schemas, which mean you wont have to manually write any migration code.
+We implemented database migrations for the existing Knex database provider by extending the Knex plugin class, which guarantees every previously available feature will be present, and includes a database migrations layer on top. The migrations we implement are generated from the current and past Keystone list schemas, which mean you wont have to manually write any migration code.
 
-It provides the following commands:
-
-This first three commands will generate the files needed to apply a migration over your database schema. This files are stored in a `./compiled` folder or any folder you specify in configuration.
+This first three commands will generate the files needed to apply a migration over your database schema. This files are stored in a `./compiled` folder or any folder you specify in configuration:
 
 `$ npx keystone-knex migrations-create ` &mdash; Automatically generates migration files required to update the database schema according to defined lists. Migration files are kept in a folder.
 
