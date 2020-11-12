@@ -10,7 +10,15 @@ We implement database migrations for the existing Knex database provider by exte
 
 It provides the following commands:
 
+This first three commands will generate the files needed to apply a migration over your database schema. This files are stored in a `./compiled` folder or any folder you specify in configuration.
+
 `$ npx keystone-knex migrations-create ` &mdash; Automatically generates migration files required to update the database schema according to defined lists. Migration files are kept in a folder.
+
+`$ npx keystone-knex migrations-rollback ` &mdash; Automatically generates migration files required to rollback your database schema according to a previous state.
+
+`$ npx keystone-knex migrations-forward ` &mdash; Automatically generates migration files required to forward your database schema to a previous rollback state.
+
+And this command applies the migrations:
 
 `$ npx keystone-knex migrations-do` &mdash; Uses any migrations defined in the migrations folder and applies one by one to the database schema.
 
@@ -34,11 +42,12 @@ A lot of things works as of now:
   * Adding relationships in lists will have this relationships mapped on the database using foreign keys columns or pivot tables depending on the cardinality
   * Changing relationship configurations like `isRequired` will have that change reflected onto the column foreign key
   * Changing relationship cardinalities will have database schema changes to be applied in a way that data is saved in the best way possible
+* Migrations rollback &mdash; you can create a migrations list from a previous database schema allowing you to revert your database schema to a previous version
+* Migrations forward &mdash; after you rollback your database schema you might forward in order to revert your database schema to a more recent state
 
 Other things are not quite right:
 
 * It's currently not possible to change from content fields to relationship fields and vice versa
-* There are no rollback migrations &mdash; I expect to work on this soon
 * You can't rename lists yet
 
 ## Simple steps
@@ -50,6 +59,7 @@ keystone.createList('InternalSchema', {
     schemaDoc: 'It keeps track all schema versions mapped to database at some point. This is used by `migrations-create` to compare against the defined list schemas.',
     fields: {
         content: { type: Text, isRequired: true, schemaDoc: 'The schema content as a JSON string' },
+        active:  { type: Checkbox, isRequired: true, knexOptions: { defaultTo: true } },
         createdAt: { type: DateTimeUtc, isRequired: true, schemaDoc: 'A datetime on the moment a schema have been applied to the database' }
     }
 });
