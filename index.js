@@ -43,8 +43,20 @@ class KnexAdapterExtended extends KnexAdapter {
         const { migrations, schema, id } = await builder.buildRollback();
         
         fs.writeFileSync(this._knexMigrationsOptions.migrationsFilePath, JSON.stringify(migrations));
-        fs.writeFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, JSON.stringify({ schema, id }));                
+        fs.writeFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, JSON.stringify({ schema, cmd: "rollback", id }));                
     }
+
+    async forwardMigrations(spinner) {
+        const builder = new MigrationBuilder(this.listAdapters, this.knex, {
+            cacheSchemaTableName: DEFAULT_CACHE_SCHEMA_TABLE_NAME,
+            spinner
+        });
+
+        const { migrations, schema, id } = await builder.buildForward();
+        
+        fs.writeFileSync(this._knexMigrationsOptions.migrationsFilePath, JSON.stringify(migrations));
+        fs.writeFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, JSON.stringify({ schema, cmd: "forward", id }));                
+    }    
     
     async doMigrations(spinner) {
 
@@ -66,7 +78,7 @@ class KnexAdapterExtended extends KnexAdapter {
             spinner
         });
         
-        await execution.apply(migrations, JSON.stringify(schema.schema), schema.id);
+        await execution.apply(migrations, JSON.stringify(schema.schema), schema.cmd, schema.id);
     }
 }
 
