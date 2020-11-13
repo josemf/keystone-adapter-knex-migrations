@@ -38,14 +38,16 @@ A lot of things works as of now:
   * Changing fields configuration like changing the field type or making the field `isRequired`, `isUnique` etc, will change the respective columns in the database
 * Relationship migrations:
   * Adding relationships in lists will have this relationships mapped on the database using foreign keys columns or pivot tables depending on the cardinality
-  * Changing relationship configurations like `isRequired` will have that change reflected onto the column foreign key
   * Changing relationship cardinalities will have database schema changes to be applied in a way that data is saved in the best way possible
+  * Changing a relationship field to a data type field will have the relationship removed and the field added, we also make our best to fetch some data to the newly created field
+  * Changing a data type field to a relationship field will have all relationship structures created and the field removed
 * Migrations rollback &mdash; you can create a migrations list from a previous database schema allowing you to revert your database schema to a previous version
 * Migrations forward &mdash; after you rollback your database schema you might forward in order to revert your database schema to a more recent state
 
 Other things are not quite right:
 
-* It's currently not possible to change from content fields to relationship fields and vice versa
+* When changing a data type field to relationship we don't quite migrate relationship data yet &mdash; that will be a best guess on what data it is.
+* `isRequired` is not set in relationship foreign keys
 * You can't rename lists yet
 
 ## Simple steps
@@ -54,12 +56,12 @@ We require a special list to be defined.
 
 ```javascript
 keystone.createList('InternalSchema', {
-    schemaDoc: 'It keeps track all schema versions mapped to database at some point. This is used by `migrations-create` to compare against the defined list schemas.',
+    schemaDoc: 'It keeps an history on migrated list schemas',
     fields: {
-        content: { type: Text, isRequired: true, schemaDoc: 'The schema content as a JSON string' },
-        active:  { type: Checkbox, isRequired: true, knexOptions: { defaultTo: true } },
-        createdAt: { type: DateTimeUtc, isRequired: true, schemaDoc: 'A datetime on the moment a schema have been applied to the database' }
-    }
+        content: { type: Text, schemaDoc: 'The schema contant as a JSON string' },
+        active:  { type: Checkbox, isRequired: true, knexOptions: { defaultTo: true }, schemaDoc: 'The schema is represented in the actual schema' },        
+        createdAt: { type: DateTimeUtc, schemaDoc: 'The data time moment the schema have been applied to the database' }
+    },
 });
 ```
 
