@@ -67,7 +67,7 @@ keystone.createList('InternalSchema', {
 
 Install with npm and git (this will be an npm package soon...) 
 
-`$ npm i git+https://github.com/josemf/keystone-adapter-knex-migrations.git`
+`$ npm i keystone-adapter-knex-migrations`
 
 And the adapter to be instantiated with some options.
 
