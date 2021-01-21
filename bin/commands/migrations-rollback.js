@@ -8,8 +8,17 @@ const rollbackMigrations = async (args, entryFile, spinner) => {
 
     // Allow the spinner time to flush its output to the console.
     await new Promise(resolve => setTimeout(resolve, 100));
-    const { keystone } = require(path.resolve(entryFile));
-    await keystone.connect();
+
+    let keystone;
+    const resolvedFromEntry = require(path.resolve(entryFile));
+    
+    if(typeof resolvedFromEntry === 'function') {
+        keystone = resolvedFromEntry().keystone;
+    } else {
+        keystone = resolvedFromEntry.keystone;
+    }
+
+    
     let errors = false;
     await asyncForEach(Object.values(keystone.adapters), async adapter => {
 
