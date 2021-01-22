@@ -349,7 +349,6 @@ class MysqlCompatibleQueryBuilder {
                 // Changed in MYSQL COMPAT:
                 // For tables with relationship fields that dont exist in the table this would result in
                 // adding a order by field that doesn't exists, resulting in an error
-                // Not sure how this was working with Postgres...
                 if(typeof listAdapter.realKeys[sortKey] !== "undefined") {
                     this._query.orderBy(sortKey, orderDirection);
                 }                 
@@ -361,7 +360,6 @@ class MysqlCompatibleQueryBuilder {
                     // Changed in MYSQL COMPAT:
                     // For tables with relationship fields that dont exist in the table this would result in
                     // adding a order by field that doesn't exists, resulting in an error
-                    // Not sure how this was working with Postgres...
                     sortBy.map(s => {
                         const [orderField, orderDirection] = this._getOrderFieldAndDirection(s);
                         
