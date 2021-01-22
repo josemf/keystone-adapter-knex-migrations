@@ -7,7 +7,7 @@ const fs = require('fs');
 
 const {
     pick,
-} = require('@keystonejs/utils');
+} = require('@keystonejs/utils'); 
 
 const MIGRATIONS_FILE_PATH = './compiled/migrations.json';
 const MIGRATIONS_SCHEMA_FILE_PATH = './compiled/schema.json';
@@ -106,7 +106,7 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
 
     async _itemsQuery(args, { meta = false, from = {} } = {}) {
         const query = new MysqlCompatibleQueryBuilder(this, args, { meta, from }).get();
-
+        
         const results = await query;
 
         if (meta) {
@@ -186,7 +186,7 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
                             .where(matchCol, item.id) // near side
                             .whereIn(selectCol, needsDelete) // far side
                             .del();
-                    } else {
+                    } else {                        
                         await this._query()
                             .table(tableName)
                             .whereIn(selectCol, needsDelete)
@@ -213,6 +213,7 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
         // N:N - put it in the many table
         // 1:N - put it in the FK col of the other table
         // 1:1 - put it in the FK col of the other table
+        
         if (cardinality === '1:1') {
             if (value !== null) {
 
@@ -227,6 +228,7 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
                 return null;
             }
         } else {
+            
             const values = value; // Rename this because we have a many situation
             if (values.length) {
                 if (cardinality === 'N:N') {
@@ -236,6 +238,7 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
                         .into(tableName)
                         .returning(far);
                 } else {
+                    
                     return this._query()
                         .table(tableName)
                         .whereIn('id', values) // 1:N
@@ -256,31 +259,37 @@ class MysqlCompatibleQueryBuilder {
         { where = {}, first, skip, sortBy, orderBy, search },
         { meta = false, from = {} }
     ) {
-
+        
         this._tableAliases = {};
+        
         this._nextBaseTableAliasId = 0;
+        
         const baseTableAlias = this._getNextBaseTableAlias();
+        
         this._query = listAdapter._query().from(`${listAdapter.tableName} as ${baseTableAlias}`);
-
+        
         if (search) {
             console.log('Knex adapter does not currently support search!');
         }
-
+        
         if (!meta) {
             // SELECT t0.* from <tableName> as t0
             this._query.column(`${baseTableAlias}.*`);
         }
 
         this._addJoins(this._query, listAdapter, where, baseTableAlias);
-
+        
         // Joins/where to effectively translate us onto a different list
         if (Object.keys(from).length) {
+            
             const a = from.fromList.adapter.fieldAdaptersByPath[from.fromField];
             const { cardinality, tableName, columnName } = a.rel;
+            
             const otherTableAlias = this._getNextBaseTableAlias();
 
             if (cardinality === 'N:N') {
                 const { near, far } = from.fromList.adapter._getNearFar(a);
+                
                 this._query.leftOuterJoin(
                     `${tableName} as ${otherTableAlias}`,
                     `${otherTableAlias}.${far}`,
@@ -336,17 +345,34 @@ class MysqlCompatibleQueryBuilder {
                 // SELECT ... ORDER BY <orderField>
                 const [orderField, orderDirection] = this._getOrderFieldAndDirection(orderBy);
                 const sortKey = listAdapter.fieldAdaptersByPath[orderField].sortKey || orderField;
-                this._query.orderBy(sortKey, orderDirection);
+
+                // Changed in MYSQL COMPAT:
+                // For tables with relationship fields that dont exist in the table this would result in
+                // adding a order by field that doesn't exists, resulting in an error
+                // Not sure how this was working with Postgres...
+                if(typeof listAdapter.realKeys[sortKey] !== "undefined") {
+                    this._query.orderBy(sortKey, orderDirection);
+                }                 
             }
             if (sortBy !== undefined) {
                 // SELECT ... ORDER BY <orderField>[, <orderField>, ...]
                 this._query.orderBy(
+
+                    // Changed in MYSQL COMPAT:
+                    // For tables with relationship fields that dont exist in the table this would result in
+                    // adding a order by field that doesn't exists, resulting in an error
+                    // Not sure how this was working with Postgres...
                     sortBy.map(s => {
                         const [orderField, orderDirection] = this._getOrderFieldAndDirection(s);
+                        
                         const sortKey = listAdapter.fieldAdaptersByPath[orderField].sortKey || orderField;
 
-                        return { column: sortKey, order: orderDirection };
-                    })
+                        if(typeof listAdapter.realKeys[orderField] !== "undefined") {                            
+                            return { column: sortKey, order: orderDirection };
+                        } else {
+                            return { };
+                        }
+                    }).filter(s => Object.keys(s) > 0)
                 );
             }
         }
@@ -407,6 +433,7 @@ class MysqlCompatibleQueryBuilder {
         listAdapter.fieldAdapters
             .filter(a => a.isRelationship && a.rel.cardinality === '1:1' && a.rel.right === a.field)
             .forEach(({ path, rel }) => {
+                
                 const { tableName, columnName } = rel;
                 const otherTableAlias = `${tableAlias}__${path}`;
                 if (!this._tableAliases[otherTableAlias]) {
@@ -421,7 +448,7 @@ class MysqlCompatibleQueryBuilder {
                     joinedPaths.push(path);
                 }
             });
-
+        
         for (let path of joinPaths) {
             if (path === 'AND' || path === 'OR') {
                 // AND/OR we need to traverse their children
