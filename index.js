@@ -1,4 +1,4 @@
-const { KnexAdapter, KnexListAdapter } = require('@keystonejs/adapter-knex');
+const { KnexAdapter, KnexListAdapter, KnexFieldAdapter } = require('@keystonejs/adapter-knex');
 
 const MigrationBuilder   = require('./lib/migration_builder');
 const MigrationExecution = require('./lib/migration_execution');
@@ -6,8 +6,9 @@ const MigrationExecution = require('./lib/migration_execution');
 const fs = require('fs');
 
 const {
+    escapeRegExp,
     pick,
-} = require('@keystonejs/utils'); 
+} = require('@keystonejs/utils');
 
 const MIGRATIONS_FILE_PATH = './compiled/migrations.json';
 const MIGRATIONS_SCHEMA_FILE_PATH = './compiled/schema.json';
@@ -17,12 +18,15 @@ class KnexAdapterExtended extends KnexAdapter {
 
     constructor({ knexOptions = {}, knexMigrationsOptions = {}, schemaName = 'public' } = {}) {
 
-        super({ knexOptions, schemaName });
+        super(...arguments);
 
-        if(this._isNotPostgres()) {
-            this.schemaName = '';
-            this.listAdapterClass = MysqlCompatibleKnexListAdapter;
+        if(this.isNotPostgres()) {
+            this.schemaName = 'mysql';
         }
+
+        this.listAdapterClass = MysqlCompatibleKnexListAdapter;
+
+        KnexAdapterExtended.defaultListAdapterClass = MysqlCompatibleKnexListAdapter;
 
         this._knexMigrationsOptions = Object.assign({}, {
             migrationsFilePath: MIGRATIONS_FILE_PATH,
@@ -31,8 +35,28 @@ class KnexAdapterExtended extends KnexAdapter {
         }, knexMigrationsOptions);
     }
 
-    _isNotPostgres() {
+    isNotPostgres() {
         return this.client !== 'postgres';
+    }
+
+    async checkDatabaseVersion() {
+        return false;
+    }
+
+    dropDatabase() {
+        if (process.env.NODE_ENV !== 'test') {
+            console.log('Knex adapter: Dropping database');
+        }
+        const tables = [
+            ...Object.values(this.listAdapters).map(
+                listAdapter => `\`${this.schemaName}\`.\`${listAdapter.tableName}\``
+            ),
+            ...this.rels
+                .filter(({ cardinality }) => cardinality === 'N:N')
+                .map(({ tableName }) => `\`${this.schemaName}\`.\`${tableName}\``),
+        ].join(',');
+
+        return this.knex.raw(`SET FOREIGN_KEY_CHECKS=0`).then(() => this.knex.raw(`DROP TABLE IF EXISTS ${tables} CASCADE`));
     }
 
     async createMigrations(spinner) {
@@ -104,9 +128,34 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
         super(...arguments);
     }
 
-    async _itemsQuery(args, { meta = false, from = {} } = {}) {
-        const query = new MysqlCompatibleQueryBuilder(this, args, { meta, from }).get();
+    newFieldAdapter(fieldAdapterClass, name, path, field, getListByKey, config) {
         
+        if(!this.parentAdapter.isNotPostgres()) {
+            return super.newFieldAdapter(... arguments);
+        }
+
+        const mysqlCompatibleFieldAdapterInstance = new MysqlCompatibleKnexFieldAdapter(... arguments);
+
+        const fieldAdapterInstance = super.newFieldAdapter(... arguments);
+
+        // Monkey patching....
+
+        ['stringConditionsInsensitive', 'stringConditions', 'equalityConditionsInsensitive'].forEach(methodName => {
+            fieldAdapterInstance[methodName] = mysqlCompatibleFieldAdapterInstance[methodName];
+        });
+
+        return fieldAdapterInstance;
+    }
+    
+    async _itemsQuery(args, { meta = false, from = {} } = {}) {
+
+        /*
+          if(!this.parentAdapter.isNotPostgres()) {
+          return super._itemsQuery(... arguments);
+          }
+        */
+        const query = new MysqlCompatibleQueryBuilder(this, args, { meta, from }).get();
+
         const results = await query;
 
         if (meta) {
@@ -130,13 +179,24 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
 
     // returning as no effect, have to fetch the row
     async _createSingle(realData) {
-        const createdItemId = (await this._query().insert(realData).into(this.tableName))[0];
+
+        if(!this.parentAdapter.isNotPostgres()) {
+            return super._createSingle(... arguments);
+        }
+
+        const createdItemId = (await this._query().insert(realData).into(this.tableName));
+
         const item = (await this._query().table(this.tableName).where('id', createdItemId))[0];
 
         return { item, itemId: item.id };
     }
 
     async _update(id, data) {
+
+        if(!this.parentAdapter.isNotPostgres()) {
+            return super._update(... arguments);
+        }
+
         const realData = pick(data, this.realKeys);
 
         // Unset any real 1:1 fields
@@ -158,7 +218,7 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
             let value;
             // Future task: Is there some way to combine the following three
             // operations into a single query?
-            
+
             if (cardinality !== '1:1') {
                 // Work out what we've currently got
                 let matchCol, selectCol;
@@ -186,7 +246,7 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
                             .where(matchCol, item.id) // near side
                             .whereIn(selectCol, needsDelete) // far side
                             .del();
-                    } else {                        
+                    } else {
                         await this._query()
                             .table(tableName)
                             .whereIn(selectCol, needsDelete)
@@ -209,26 +269,31 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
     }
 
     async _createOrUpdateField({ value, adapter, itemId }) {
+
+        if(!this.parentAdapter.isNotPostgres()) {
+            return super._createOrUpdateField(... arguments);
+        }
+
         const { cardinality, columnName, tableName } = adapter.rel;
         // N:N - put it in the many table
         // 1:N - put it in the FK col of the other table
         // 1:1 - put it in the FK col of the other table
-        
+
         if (cardinality === '1:1') {
             if (value !== null) {
 
-                // This goes with a promise
-                
+                // TODO: This goes with a promise
+
                 return this._query()
                     .table(tableName)
                     .where('id', value)
                     .update({ [columnName]: itemId })
-                    .returning('id');
+                //                    .returning('id');
             } else {
                 return null;
             }
         } else {
-            
+
             const values = value; // Rename this because we have a many situation
             if (values.length) {
                 if (cardinality === 'N:N') {
@@ -236,14 +301,14 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
                     return this._query()
                         .insert(values.map(id => ({ [near]: itemId, [far]: id })))
                         .into(tableName)
-                        .returning(far);
+                    //                        .returning(far);
                 } else {
-                    
+
                     return this._query()
                         .table(tableName)
                         .whereIn('id', values) // 1:N
                         .update({ [columnName]: itemId })
-                        .returning('id');
+                    //                        .returning('id');
                 }
             } else {
                 return [];
@@ -252,44 +317,44 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
     }
 }
 
-/* Unfortunately had to copy all code: Changes are marked as MYSQL HERE: */
+// Unfortunately had to copy all code: Changes are marked as MYSQL HERE:
+
 class MysqlCompatibleQueryBuilder {
     constructor(
         listAdapter,
         { where = {}, first, skip, sortBy, orderBy, search },
         { meta = false, from = {} }
     ) {
-        
         this._tableAliases = {};
-        
+
         this._nextBaseTableAliasId = 0;
-        
+
         const baseTableAlias = this._getNextBaseTableAlias();
-        
+
         this._query = listAdapter._query().from(`${listAdapter.tableName} as ${baseTableAlias}`);
-        
+
         if (search) {
             console.log('Knex adapter does not currently support search!');
         }
-        
+
         if (!meta) {
             // SELECT t0.* from <tableName> as t0
             this._query.column(`${baseTableAlias}.*`);
         }
 
         this._addJoins(this._query, listAdapter, where, baseTableAlias);
-        
+
         // Joins/where to effectively translate us onto a different list
         if (Object.keys(from).length) {
-            
+
             const a = from.fromList.adapter.fieldAdaptersByPath[from.fromField];
             const { cardinality, tableName, columnName } = a.rel;
-            
+
             const otherTableAlias = this._getNextBaseTableAlias();
 
             if (cardinality === 'N:N') {
                 const { near, far } = from.fromList.adapter._getNearFar(a);
-                
+
                 this._query.leftOuterJoin(
                     `${tableName} as ${otherTableAlias}`,
                     `${otherTableAlias}.${far}`,
@@ -321,7 +386,18 @@ class MysqlCompatibleQueryBuilder {
 
                 // MYSQL HERE:
                 // Lets say postgres `~* word` mysql equivalent is LIKE "%word%"
-                this._query.andWhere(`${baseTableAlias}.name`, 'like', `%${search.replace('%', '')}%`);
+
+                const f = escapeRegExp;
+                
+                if(listAdapter.parentAdapter.isNotPostgres()) {
+
+                    if(search) {                    
+                        this._query.andWhere(`${baseTableAlias}.name`, 'REGEXP', f(search));
+                    }
+                } else {
+                    this._query.andWhere(`${baseTableAlias}.name`, '~*', f(search));
+                }
+
             } else {
                 this._query.whereRaw('false'); // Return no results
             }
@@ -349,29 +425,34 @@ class MysqlCompatibleQueryBuilder {
                 // Changed in MYSQL COMPAT:
                 // For tables with relationship fields that dont exist in the table this would result in
                 // adding a order by field that doesn't exists, resulting in an error
-                if(typeof listAdapter.realKeys[sortKey] !== "undefined") {
+                if(listAdapter.realKeys.includes(sortKey)) {
                     this._query.orderBy(sortKey, orderDirection);
-                }                 
+                }
             }
             if (sortBy !== undefined) {
                 // SELECT ... ORDER BY <orderField>[, <orderField>, ...]
+
+                const orderBy = sortBy.map(s => {
+                    const [orderField, orderDirection] = this._getOrderFieldAndDirection(s);
+
+                    const sortKey = listAdapter.fieldAdaptersByPath[orderField].sortKey || orderField;
+
+                    if(listAdapter.realKeys.includes(sortKey)) {
+                        return { column: sortKey, order: orderDirection };
+                    } else {
+                        return undefined;
+                    }
+                }).filter(s => typeof s !== "undefined");
+
                 this._query.orderBy(
 
                     // Changed in MYSQL COMPAT:
                     // For tables with relationship fields that dont exist in the table this would result in
                     // adding a order by field that doesn't exists, resulting in an error
-                    sortBy.map(s => {
-                        const [orderField, orderDirection] = this._getOrderFieldAndDirection(s);
-                        
-                        const sortKey = listAdapter.fieldAdaptersByPath[orderField].sortKey || orderField;
 
-                        if(typeof listAdapter.realKeys[orderField] !== "undefined") {                            
-                            return { column: sortKey, order: orderDirection };
-                        } else {
-                            return { };
-                        }
-                    }).filter(s => Object.keys(s) > 0)
+                    orderBy
                 );
+
             }
         }
     }
@@ -431,7 +512,7 @@ class MysqlCompatibleQueryBuilder {
         listAdapter.fieldAdapters
             .filter(a => a.isRelationship && a.rel.cardinality === '1:1' && a.rel.right === a.field)
             .forEach(({ path, rel }) => {
-                
+
                 const { tableName, columnName } = rel;
                 const otherTableAlias = `${tableAlias}__${path}`;
                 if (!this._tableAliases[otherTableAlias]) {
@@ -446,7 +527,7 @@ class MysqlCompatibleQueryBuilder {
                     joinedPaths.push(path);
                 }
             });
-        
+
         for (let path of joinPaths) {
             if (path === 'AND' || path === 'OR') {
                 // AND/OR we need to traverse their children
@@ -580,6 +661,73 @@ class MysqlCompatibleQueryBuilder {
     }
 }
 
-KnexAdapterExtended.defaultListAdapterClass = MysqlCompatibleKnexListAdapter;
+class MysqlCompatibleKnexFieldAdapter extends KnexFieldAdapter {
+    constructor() {
+        super(...arguments);
+    }
 
-module.exports = KnexAdapterExtended;
+    equalityConditionsInsensitive(dbPath) {
+        const f = escapeRegExp;
+        return {
+            [`${this.path}_i`]: value => b => b.where(dbPath, 'REGEXP', `^${f(value)}$`),
+            [`${this.path}_not_i`]: value => b =>
+                b.where(dbPath, 'NOT REGEXP', `^${f(value)}$`).orWhereNull(dbPath),
+        };
+    }
+
+/*
+    
+    stringConditions(dbPath) {
+        const f = escapeRegExp;
+        return {
+            [`${this.path}_contains`]: value => b => b.where(dbPath, 'REGEXP BINARY', f(value)),
+            [`${this.path}_not_contains`]: value => b =>
+                b.where(dbPath, 'NOT REGEXP BINARY', f(value)).orWhereNull(dbPath),
+            [`${this.path}_starts_with`]: value => b => b.where(dbPath, 'REGEXP BINARY', `^${f(value)}`),
+            [`${this.path}_not_starts_with`]: value => b =>
+                b.where(dbPath, 'NOT REGEXP BINARY', `^${f(value)}`).orWhereNull(dbPath),
+            [`${this.path}_ends_with`]: value => b => b.where(dbPath, 'REGEXP BINARY', `${f(value)}$`),
+            [`${this.path}_not_ends_with`]: value => b =>
+                b.where(dbPath, 'NOT REGEXP BINARY', `${f(value)}$`).orWhereNull(dbPath),
+        };
+    }
+
+*/
+
+    stringConditions(dbPath) {
+        const f = escapeRegExp;
+        
+        return {
+            [`${this.path}_contains`]: value => b => b.where(dbPath, 'REGEXP', f(value)),
+            [`${this.path}_not_contains`]: value => b =>
+                b.where(dbPath, 'NOT REGEXP', f(value)).orWhereNull(dbPath),
+            [`${this.path}_starts_with`]: value => b => b.where(dbPath, 'REGEXP', `^${f(value)}`),
+            [`${this.path}_not_starts_with`]: value => b =>
+                b.where(dbPath, 'NOT REGEXP', `^${f(value)}`).orWhereNull(dbPath),
+            [`${this.path}_ends_with`]: value => b => b.where(dbPath, 'REGEXP', `${f(value)}$`),
+            [`${this.path}_not_ends_with`]: value => b =>
+                b.where(dbPath, 'NOT REGEXP', `${f(value)}$`).orWhereNull(dbPath),
+        };
+    }    
+
+    stringConditionsInsensitive(dbPath) {
+        const f = escapeRegExp;
+        return {
+            [`${this.path}_contains_i`]: value => b => b.where(dbPath, 'REGEXP', f(value)),
+            [`${this.path}_not_contains_i`]: value => b =>
+                b.where(dbPath, 'NOT REGEXP', f(value)).orWhereNull(dbPath),
+            [`${this.path}_starts_with_i`]: value => b => b.where(dbPath, 'REGEXP', `^${f(value)}`),
+            [`${this.path}_not_starts_with_i`]: value => b =>
+                b.where(dbPath, 'NOT REGEXP', `^${f(value)}`).orWhereNull(dbPath),
+            [`${this.path}_ends_with_i`]: value => b => b.where(dbPath, 'REGEXP', `${f(value)}$`),
+            [`${this.path}_not_ends_with_i`]: value => b =>
+                b.where(dbPath, 'NOT REGEXP', `${f(value)}$`).orWhereNull(dbPath),
+        };
+    }
+}
+
+module.exports = {
+    KnexAdapter: KnexAdapterExtended,
+    KnexListAdapter: MysqlCompatibleKnexListAdapter,
+    KnexFieldAdapter: MysqlCompatibleKnexFieldAdapter
+};
