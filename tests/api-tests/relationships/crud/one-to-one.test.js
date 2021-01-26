@@ -53,7 +53,7 @@ const createCompanyAndLocation = async keystone => {
   return { company: createCompany, location: createCompany.location };
 };
 
-const createLocationAndCompany = async keystone => {
+const createLocationAndCompany = async keystone => {    
   const {
     data: { createLocation },
     errors,
@@ -66,6 +66,7 @@ const createLocationAndCompany = async keystone => {
         }) { id name company { id name } }
       }`,
   });
+    
   expect(errors).toBe(undefined);
   const { Company, Location } = await getCompanyAndLocation(
     keystone,
@@ -74,13 +75,15 @@ const createLocationAndCompany = async keystone => {
   );
 
   // Sanity check the links are setup correctly
-  expect(Company.location.id.toString()).toBe(Location.id.toString());
+
+    expect(Company.location.id.toString()).toBe(Location.id.toString());
   expect(Location.company.id.toString()).toBe(Company.id.toString());
 
   return { location: createLocation, company: createLocation.company };
 };
 
 const getCompanyAndLocation = async (keystone, companyId, locationId) => {
+    
   const { data } = await keystone.executeGraphQL({
     query: `
   {
@@ -88,6 +91,7 @@ const getCompanyAndLocation = async (keystone, companyId, locationId) => {
     Location(where: { id: "${locationId}"} ) { id company { id } }
   }`,
   });
+    
   return data;
 };
 

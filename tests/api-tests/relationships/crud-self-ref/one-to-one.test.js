@@ -34,7 +34,7 @@ const createUserAndFriend = async keystone => {
   });
   expect(errors).toBe(undefined);
   const { User, Friend } = await getUserAndFriend(keystone, createUser.id, createUser.friend.id);
-
+    
   // Sanity check the links are setup correctly
   expect(User.friend.id.toString()).toBe(Friend.id.toString());
   expect(Friend.friendOf.id.toString()).toBe(User.id.toString());
@@ -180,14 +180,18 @@ multiAdapterRunners().map(({ runner, adapterName }) =>
         if (adapterName !== 'mongoose') {
           test(
             'Where with count - friend',
-            runner(setupKeystone, async ({ keystone }) => {
-              await createInitialData(keystone);
-              const { friend } = await createUserAndFriend(keystone);
+              runner(setupKeystone, async ({ keystone }) => {
+                  
+                  await createInitialData(keystone);
+                  
+                  const { friend } = await createUserAndFriend(keystone);
+                  
               const { data, errors } = await keystone.executeGraphQL({
                 query: `{
                   _allUsersMeta(where: { friend: { name: "${friend.name}"} }) { count }
                 }`,
               });
+                
               expect(errors).toBe(undefined);
               expect(data._allUsersMeta.count).toEqual(1);
             })

@@ -100,8 +100,6 @@ multiAdapterRunners().map(({ runner, adapterName }) =>
           }
       `,
         });
-
-          console.log("DDD", data, errors);
           
         expect(errors).toBe(undefined);
         expect(data).toHaveProperty('allTests');

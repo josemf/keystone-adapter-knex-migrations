@@ -25,7 +25,7 @@ const argGenerator = {
     },
   }),
 
-  knex_mysql7: () => ({
+  knex_mysql: () => ({
     dropDatabase: true,
     knexOptions: {
       client: 'mysql',
@@ -51,7 +51,7 @@ async function setupFromConfig({
     const adapterArgs = await argGenerator[adapterName]();
     config.db = { adapter: adapterName, url: adapterArgs.knexOptions.connection, ...adapterArgs };
 
-  } else if (adapterName === 'knex_mysql7') {
+  } else if (adapterName === 'knex_mysql') {
     const adapterArgs = await argGenerator[adapterName]();
     config.db = { adapter: 'knex', ...adapterArgs };
   }
@@ -70,7 +70,7 @@ async function setupServer({
   keystoneOptions,
   graphqlOptions = {},
 }: {
-  adapterName: 'knex' | 'knex_mysql7';
+  adapterName: 'knex' | 'knex_mysql';
   schemaName: string;
   schemaNames: string[];
   createLists: (args: Keystone<string>) => void;
@@ -79,7 +79,7 @@ async function setupServer({
 }) {
   const Adapter = {
     knex: KnexAdapter,
-    knex_mysql7: KnexAdapter
+    knex_mysql: KnexAdapter
   }[adapterName];
 
   const keystone = new Keystone({
@@ -206,9 +206,9 @@ function multiAdapterRunners(only = process.env.TEST_ADAPTER) {
       after: _after(() => {}),
     },
     {   
-      runner: _keystoneRunner('knex_mysql7', () => {}),
-      adapterName: 'knex_mysql7',
-      before: _before('knex_mysql7'),
+      runner: _keystoneRunner('knex_mysql', () => {}),
+      adapterName: 'knex_mysql',
+      before: _before('knex_mysql'),
       after: _after(() => {}),
     }
   ].filter(a => typeof only === 'undefined' || a.adapterName === only);

@@ -5,7 +5,7 @@
     "main": "index.js",
     "scripts": {
         "test-postgres": "cross-env TEST_ADAPTER=knex KNEX_URI=postgres://postgres:postgres@localhost/postgres DISABLE_LOGGING=true NODE_ENV=test jest --no-watchman --maxWorkers=1 --logHeapUsage",
-        "test-mysql7": "cross-env TEST_ADAPTER=knex_mysql7 DATABASE_HOST=localhost DATABASE_USER=root DATABASE_PASSWORD=mysql DATABASE_NAME=mysql DISABLE_LOGGING=true NODE_ENV=test jest --no-watchman --maxWorkers=1 --logHeapUsage"
+        "test-mysql": "cross-env TEST_ADAPTER=knex_mysql DATABASE_HOST=localhost DATABASE_USER=root DATABASE_PASSWORD=mysql DATABASE_NAME=test DISABLE_LOGGING=true NODE_ENV=test jest --no-watchman --maxWorkers=1 --logHeapUsage"
     },
     "author": "josemf",
     "license": "ISC",

@@ -44,6 +44,11 @@ class KnexAdapterExtended extends KnexAdapter {
     }
 
     dropDatabase() {
+
+        if(!this.isNotPostgres()) {
+            return super.dropDatabase();
+        }
+        
         if (process.env.NODE_ENV !== 'test') {
             console.log('Knex adapter: Dropping database');
         }
@@ -183,8 +188,10 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
         if(!this.parentAdapter.isNotPostgres()) {
             return super._createSingle(... arguments);
         }
-
-        const createdItemId = (await this._query().insert(realData).into(this.tableName));
+        
+        const createQuery = this._query().insert(realData).into(this.tableName);
+        
+        const createdItemId = await createQuery;
 
         const item = (await this._query().table(this.tableName).where('id', createdItemId))[0];
 
@@ -198,7 +205,7 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
         }
 
         const realData = pick(data, this.realKeys);
-
+        
         // Unset any real 1:1 fields
         await this._unsetOneToOneValues(realData);
         await this._unsetForeignOneToOneValues(data, id);
@@ -208,10 +215,10 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
         if (Object.keys(realData).length) {
             query.update(realData);
         }
-
+        
         await query;
         const item = (await this._query().table(this.tableName).where('id', id))[0];
-
+        
         // For every many-field, update the many-table
         await this._processNonRealFields(data, async ({ path, value: newValues, adapter }) => {
             const { cardinality, columnName, tableName } = adapter.rel;
@@ -273,7 +280,7 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
         if(!this.parentAdapter.isNotPostgres()) {
             return super._createOrUpdateField(... arguments);
         }
-
+        
         const { cardinality, columnName, tableName } = adapter.rel;
         // N:N - put it in the many table
         // 1:N - put it in the FK col of the other table
@@ -287,8 +294,11 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
                 return this._query()
                     .table(tableName)
                     .where('id', value)
-                    .update({ [columnName]: itemId })
-                //                    .returning('id');
+                    .update({ [columnName]: itemId }).then(result => {
+                        // In mysql we must explicitly return the set id
+                        // Which is `value`. Update returns number of affected rows
+                        return value;
+                    });
             } else {
                 return null;
             }
@@ -326,24 +336,22 @@ class MysqlCompatibleQueryBuilder {
         { meta = false, from = {} }
     ) {
         this._tableAliases = {};
-
+        this._selectNames =  {};
+        this._selectNamesCount = 0;
+        
         this._nextBaseTableAliasId = 0;
 
         const baseTableAlias = this._getNextBaseTableAlias();
 
         this._query = listAdapter._query().from(`${listAdapter.tableName} as ${baseTableAlias}`);
 
-        if (search) {
-            console.log('Knex adapter does not currently support search!');
-        }
-
         if (!meta) {
             // SELECT t0.* from <tableName> as t0
             this._query.column(`${baseTableAlias}.*`);
         }
-
+        
         this._addJoins(this._query, listAdapter, where, baseTableAlias);
-
+        
         // Joins/where to effectively translate us onto a different list
         if (Object.keys(from).length) {
 
@@ -507,32 +515,40 @@ class MysqlCompatibleQueryBuilder {
         const joinPaths = Object.keys(where).filter(
             path => !this._getQueryConditionByPath(listAdapter, path)
         );
-
+        
         const joinedPaths = [];
         listAdapter.fieldAdapters
             .filter(a => a.isRelationship && a.rel.cardinality === '1:1' && a.rel.right === a.field)
             .forEach(({ path, rel }) => {
-
+                
                 const { tableName, columnName } = rel;
                 const otherTableAlias = `${tableAlias}__${path}`;
                 if (!this._tableAliases[otherTableAlias]) {
                     this._tableAliases[otherTableAlias] = true;
-                    // LEFT OUTERJOIN on ... table>.<id> = <otherTable>.<columnName> SELECT <othertable>.<id> as <path>
+                    // LEFT OUTERJOIN on ... table>.<id> = <otherTable>.<columnName> SELECT <othertable>.<id> as <path>                    
                     query.leftOuterJoin(
                         `${tableName} as ${otherTableAlias}`,
                         `${otherTableAlias}.${columnName}`,
                         `${tableAlias}.id`
                     );
-                    query.select(`${otherTableAlias}.id as ${path}`);
+
+                    if(this._selectNames[path] !== true) {                    
+                        query.select(`${otherTableAlias}.id as ${path}`);
+                        this._selectNames[path] = true;                        
+                    } else {
+                        query.select(`${otherTableAlias}.id as ${path}_${++this._selectNamesCount}`);
+                    }
+                    
                     joinedPaths.push(path);
                 }
             });
-
+        
         for (let path of joinPaths) {
             if (path === 'AND' || path === 'OR') {
-                // AND/OR we need to traverse their children
+                // AND/OR we need to traverse their children                
                 where[path].forEach(x => this._addJoins(query, listAdapter, x, tableAlias));
             } else {
+                                
                 const otherAdapter = listAdapter.fieldAdaptersByPath[path];
                 // If no adapter is found, it must be a query of the form `foo_some`, `foo_every`, etc.
                 // These correspond to many-relationships, which are handled separately
@@ -553,6 +569,7 @@ class MysqlCompatibleQueryBuilder {
                             `${tableAlias}.${path}`
                         );
                     }
+                    
                     this._addJoins(query, otherListAdapter, where[path], otherTableAlias);
                 }
             }
@@ -622,6 +639,7 @@ class MysqlCompatibleQueryBuilder {
                             `${subBaseTableAlias}.${far}`
                         );
                     }
+                    
                     this._addJoins(subQuery, otherListAdapter, where[path], otherTableAlias);
 
                     // some: the ID is in the examples found
