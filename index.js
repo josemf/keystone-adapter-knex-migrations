@@ -21,8 +21,8 @@ class KnexAdapterExtended extends KnexAdapter {
         super(...arguments);
 
         if(this.isNotPostgres()) {
-            this.schemaName = 'mysql';
-        }
+            this.schemaName = knexOptions.connection.database;
+        } 
 
         this.listAdapterClass = MysqlCompatibleKnexListAdapter;
 
@@ -64,6 +64,24 @@ class KnexAdapterExtended extends KnexAdapter {
         return this.knex.raw(`SET FOREIGN_KEY_CHECKS=0`).then(() => this.knex.raw(`DROP TABLE IF EXISTS ${tables} CASCADE`));
     }
 
+    async _createTables() {
+        const builder = new MigrationBuilder(this.listAdapters, this.knex, {
+            ignoreCacheSchema: true,
+            silent: true
+        });
+        
+        const { migrations, schema } = await builder.build();
+        
+        const execution = new MigrationExecution(this.listAdapters, this.knex, {
+            ignoreCacheSchema: true,
+            silent: true
+        });
+        
+        await execution.apply(migrations, JSON.stringify(schema.schema), schema.cmd, schema.id);
+
+        return [];        
+    }
+   
     async createMigrations(spinner) {
 
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {
