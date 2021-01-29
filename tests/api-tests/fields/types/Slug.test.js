@@ -24,7 +24,7 @@ const setupList = (adapterName, fields) => () =>
 
 describe('Slug#implementation', () => {
   multiAdapterRunners().map(({ runner, adapterName }) =>
-    describe.skip(`Adapter: ${adapterName}`, () => {
+    describe(`Adapter: ${adapterName}`, () => {
       test('Instantiates correctly if from is a string', () => {
         expect(() => {
           runner(

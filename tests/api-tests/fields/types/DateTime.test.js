@@ -116,7 +116,7 @@ multiAdapterRunners().map(({ runner, adapterName }) =>
       );
 
         // Mysql isn't setting milliseconds precision to timestamp fields
-      test.skip(
+      test(
         'correctly overrides with new value',
         runner(setupKeystone, async ({ keystone }) => {
           const postedAt = '2018-08-31T06:49:07.000Z';
@@ -201,6 +201,8 @@ multiAdapterRunners().map(({ runner, adapterName }) =>
         }
     `,
           });
+
+            console.log("Mysql explicit_defaults_for_timestamp=1 must be set. Should be a default on recent releases.");
             
           expect(errors).toBe(undefined);
           expect(data).toHaveProperty('updatePost.postedAt', postedAt);
