@@ -83,7 +83,7 @@ multiAdapterRunners().map(({ runner, adapterName }) =>
 
       // this is failing on GitHub Actions rn for some unknown reason so going to disable it for now
       // eslint-disable-next-line jest/no-disabled-tests
-      test.skip(
+      test(
         'nested to-many relationships can be limited',
         runner(setupKeystone, async ({ keystone }) => {
           const ids = await createItems({
