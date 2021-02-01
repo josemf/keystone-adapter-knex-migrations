@@ -4,22 +4,22 @@ const MigrationBuilder   = require('./lib/migration_builder');
 const MigrationExecution = require('./lib/migration_execution');
 
 const fs = require('fs');
-
+ 
 const {
     escapeRegExp,
     pick,
 } = require('@keystonejs/utils');
-
+ 
 const MIGRATIONS_FILE_PATH = './compiled/migrations.json';
 const MIGRATIONS_SCHEMA_FILE_PATH = './compiled/schema.json';
-const DEFAULT_CACHE_SCHEMA_TABLE_NAME = "InternalSchema";
-
+const DEFAULT_CACHE_SCHEMA_TABLE_NAME = "SchemaVersion";
+ 
 class KnexAdapterExtended extends KnexAdapter {
 
     constructor({ knexOptions = {}, knexMigrationsOptions = {}, schemaName = 'public' } = {}) {
 
         super(...arguments);
-
+        
         if(this.isNotPostgres()) {
             this.schemaName = knexOptions.connection.database;
         } 
@@ -63,7 +63,7 @@ class KnexAdapterExtended extends KnexAdapter {
 
         return this.knex.raw(`SET FOREIGN_KEY_CHECKS=0`).then(() => this.knex.raw(`DROP TABLE IF EXISTS ${tables} CASCADE`));
     }
-
+   
     async _createTables() {
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {
             ignoreCacheSchema: true,
@@ -71,7 +71,7 @@ class KnexAdapterExtended extends KnexAdapter {
         });
         
         const { migrations, schema } = await builder.build();
-        
+         
         const execution = new MigrationExecution(this.listAdapters, this.knex, {
             ignoreCacheSchema: true,
             silent: true
@@ -91,11 +91,16 @@ class KnexAdapterExtended extends KnexAdapter {
 
         const { migrations, schema } = await builder.build();
 
-        fs.writeFileSync(this._knexMigrationsOptions.migrationsFilePath, JSON.stringify(migrations));
-        fs.writeFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, JSON.stringify({ schema }));
+        const execution = new MigrationExecution(this.listAdapters, this.knex, {
+            cacheSchemaTableName: this._knexMigrationsOptions.schemaTableName,
+            spinner
+        });
+        
+        await execution.apply(migrations, JSON.stringify(schema), schema.cmd, schema.id);
     }
 
     async rollbackMigrations(spinner) {
+        
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {
             cacheSchemaTableName: DEFAULT_CACHE_SCHEMA_TABLE_NAME,
             spinner
@@ -119,6 +124,8 @@ class KnexAdapterExtended extends KnexAdapter {
         fs.writeFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, JSON.stringify({ schema, cmd: "forward", id }));
     }
 
+    /*
+    
     async doMigrations(spinner) {
 
         if(!fs.existsSync(this._knexMigrationsOptions.migrationsFilePath)) {
@@ -141,6 +148,8 @@ class KnexAdapterExtended extends KnexAdapter {
 
         await execution.apply(migrations, JSON.stringify(schema.schema), schema.cmd, schema.id);
     }
+
+*/
 }
 
 // Lets try to our best to have some decent mysql support--because there might be reasons not

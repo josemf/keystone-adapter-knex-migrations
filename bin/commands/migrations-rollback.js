@@ -18,7 +18,7 @@ const rollbackMigrations = async (args, entryFile, spinner) => {
         keystone = resolvedFromEntry.keystone;
     }
 
-    
+    await keystone.connect();    
     let errors = false;
     await asyncForEach(Object.values(keystone.adapters), async adapter => {
 
