@@ -74,7 +74,8 @@ class KnexAdapterExtended extends KnexAdapter {
          
         const execution = new MigrationExecution(this.listAdapters, this.knex, {
             ignoreCacheSchema: true,
-            silent: true
+            silent: true,
+            schemaName: this.schemaName
         });
         
         await execution.apply(migrations, JSON.stringify(schema.schema), schema.cmd, schema.id);
@@ -82,8 +83,8 @@ class KnexAdapterExtended extends KnexAdapter {
         return [];        
     }
    
-    async createMigrations(spinner) {
-
+    async migrate(spinner, options) {
+        
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {
             cacheSchemaTableName: DEFAULT_CACHE_SCHEMA_TABLE_NAME,
             spinner
@@ -93,7 +94,11 @@ class KnexAdapterExtended extends KnexAdapter {
 
         const execution = new MigrationExecution(this.listAdapters, this.knex, {
             cacheSchemaTableName: this._knexMigrationsOptions.schemaTableName,
-            spinner
+            spinner,
+            provider: this.isNotPostgres() ? 'mysql' : 'postgres',
+            schemaName: this.schemaName,
+            mode: options.mode,
+            sqlPath: options.sqlPath
         });
         
         await execution.apply(migrations, JSON.stringify(schema), schema.cmd, schema.id);
@@ -337,14 +342,14 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
                     const { near, far } = this._getNearFar(adapter);
                     return this._query()
                         .insert(values.map(id => ({ [near]: itemId, [far]: id })))
-                        .into(tableName)
+                        .into(tableName);
                     //                        .returning(far);
                 } else {
 
                     return this._query()
                         .table(tableName)
                         .whereIn('id', values) // 1:N
-                        .update({ [columnName]: itemId })
+                        .update({ [columnName]: itemId });
                     //                        .returning('id');
                 }
             } else {
