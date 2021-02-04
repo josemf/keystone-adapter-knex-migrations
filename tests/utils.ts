@@ -17,16 +17,16 @@ import type { KeystoneConfig, BaseKeystone, KeystoneContext } from '@keystone-ne
 export type AdapterName = 'knex' | 'knex_mysql';
 
 const argGenerator = {
-  knex: () => ({
-    dropDatabase: true,
+  knex: ({dropDatabase = true}) => ({
+    dropDatabase: dropDatabase,
     knexOptions: {
       connection:
         process.env.DATABASE_URL || process.env.KNEX_URI || 'postgres://localhost/keystone',
     },
   }),
 
-  knex_mysql: () => ({
-    dropDatabase: true,
+  knex_mysql: ({dropDatabase = true}) => ({
+    dropDatabase: dropDatabase,
     knexOptions: {
       client: 'mysql',
       connection: {
@@ -67,6 +67,7 @@ async function setupServer({
   schemaName = 'public',
   schemaNames = ['public'],
   createLists = () => {},
+  method = 'create-tables',
   keystoneOptions,
   graphqlOptions = {},
 }: {
@@ -82,8 +83,10 @@ async function setupServer({
     knex_mysql: KnexAdapter
   }[adapterName];
 
+  const adapterInstance = new Adapter(await argGenerator[adapterName]({dropDatabase: method === 'create-tables'}));
+
   const keystone = new Keystone({
-    adapter: new Adapter(await argGenerator[adapterName]()),
+    adapter: adapterInstance,
     // @ts-ignore The @types/keystonejs__keystone package has the wrong type for KeystoneOptions
     defaultAccess: { list: true, field: true },
     schemaNames,
@@ -112,6 +115,10 @@ async function setupServer({
 
   const app = express();
   app.use(middlewares);
+
+  if(method === 'migrate') {
+    adapterInstance.migrate(undefined, { mode: 'silent'});
+  }
 
   return { keystone, app };
 }
@@ -165,6 +172,7 @@ function _keystoneRunner(adapterName: AdapterName, tearDownFunction: () => Promi
         }
         return;
       }
+
       const setup = await setupKeystoneFn(adapterName);
       const { keystone } = setup;
 

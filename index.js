@@ -4,22 +4,22 @@ const MigrationBuilder   = require('./lib/migration_builder');
 const MigrationExecution = require('./lib/migration_execution');
 
 const fs = require('fs');
-
+ 
 const {
     escapeRegExp,
     pick,
 } = require('@keystonejs/utils');
-
+ 
 const MIGRATIONS_FILE_PATH = './compiled/migrations.json';
 const MIGRATIONS_SCHEMA_FILE_PATH = './compiled/schema.json';
-const DEFAULT_CACHE_SCHEMA_TABLE_NAME = "InternalSchema";
-
+const DEFAULT_CACHE_SCHEMA_TABLE_NAME = "SchemaVersion";
+ 
 class KnexAdapterExtended extends KnexAdapter {
 
     constructor({ knexOptions = {}, knexMigrationsOptions = {}, schemaName = 'public' } = {}) {
 
         super(...arguments);
-
+        
         if(this.isNotPostgres()) {
             this.schemaName = knexOptions.connection.database;
         } 
@@ -61,20 +61,26 @@ class KnexAdapterExtended extends KnexAdapter {
                 .map(({ tableName }) => `\`${this.schemaName}\`.\`${tableName}\``),
         ].join(',');
 
-        return this.knex.raw(`SET FOREIGN_KEY_CHECKS=0`).then(() => this.knex.raw(`DROP TABLE IF EXISTS ${tables} CASCADE`));
+        if(tables) {        
+            return this.knex.raw(`SET FOREIGN_KEY_CHECKS=0`).then(() => this.knex.raw(`DROP TABLE IF EXISTS ${tables} CASCADE`));
+        }
+        
+        return false;
     }
-
+   
     async _createTables() {
+        
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {
             ignoreCacheSchema: true,
-            silent: true
+            mode: "silent"
         });
         
         const { migrations, schema } = await builder.build();
-        
+         
         const execution = new MigrationExecution(this.listAdapters, this.knex, {
             ignoreCacheSchema: true,
-            silent: true
+            mode: "silent",
+            schemaName: this.schemaName
         });
         
         await execution.apply(migrations, JSON.stringify(schema.schema), schema.cmd, schema.id);
@@ -82,64 +88,70 @@ class KnexAdapterExtended extends KnexAdapter {
         return [];        
     }
    
-    async createMigrations(spinner) {
-
+    async migrate(spinner, options) {
+        
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {
             cacheSchemaTableName: DEFAULT_CACHE_SCHEMA_TABLE_NAME,
-            spinner
+            spinner,
+            mode: options.mode
         });
 
         const { migrations, schema } = await builder.build();
 
-        fs.writeFileSync(this._knexMigrationsOptions.migrationsFilePath, JSON.stringify(migrations));
-        fs.writeFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, JSON.stringify({ schema }));
+        const execution = new MigrationExecution(this.listAdapters, this.knex, {
+            cacheSchemaTableName: this._knexMigrationsOptions.schemaTableName,
+            spinner,
+            provider: this.isNotPostgres() ? 'mysql' : 'postgres',
+            schemaName: this.schemaName,
+            mode: options.mode,
+            sqlPath: options.sqlPath
+        });
+        
+        await execution.apply(migrations, JSON.stringify(schema), schema.cmd, schema.id);
     }
 
-    async rollbackMigrations(spinner) {
+    async rollbackMigrations(spinner, options) {
+        
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {
             cacheSchemaTableName: DEFAULT_CACHE_SCHEMA_TABLE_NAME,
-            spinner
+            spinner,
+            mode: options.mode            
         });
 
         const { migrations, schema, id } = await builder.buildRollback();
 
-        fs.writeFileSync(this._knexMigrationsOptions.migrationsFilePath, JSON.stringify(migrations));
-        fs.writeFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, JSON.stringify({ schema, cmd: "rollback", id }));
+        const execution = new MigrationExecution(this.listAdapters, this.knex, {
+            cacheSchemaTableName: this._knexMigrationsOptions.schemaTableName,
+            spinner,
+            provider: this.isNotPostgres() ? 'mysql' : 'postgres',
+            schemaName: this.schemaName,
+            mode: options.mode,
+            sqlPath: options.sqlPath
+        });
+        
+        await execution.apply(migrations, JSON.stringify(schema), 'rollback', id);        
     }
 
-    async forwardMigrations(spinner) {
+    async forwardMigrations(spinner, options) {
+        
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {
             cacheSchemaTableName: DEFAULT_CACHE_SCHEMA_TABLE_NAME,
-            spinner
+            spinner,
+            mode: options.mode
         });
 
         const { migrations, schema, id } = await builder.buildForward();
-
-        fs.writeFileSync(this._knexMigrationsOptions.migrationsFilePath, JSON.stringify(migrations));
-        fs.writeFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, JSON.stringify({ schema, cmd: "forward", id }));
-    }
-
-    async doMigrations(spinner) {
-
-        if(!fs.existsSync(this._knexMigrationsOptions.migrationsFilePath)) {
-            console.log(`Needs migrations file in place ${MIGRATIONS_FILE_PATH}`);
-            return;
-        }
-
-        if(!fs.existsSync(this._knexMigrationsOptions.migrationsSchemaFilePath)) {
-            console.log(`Needs migrations schema file in place ${MIGRATIONS_SCHEMA_FILE_PATH}`);
-            return;
-        }
-
-        const migrations = JSON.parse(fs.readFileSync(this._knexMigrationsOptions.migrationsFilePath, "utf-8"));
-        const schema = JSON.parse(fs.readFileSync(this._knexMigrationsOptions.migrationsSchemaFilePath, "utf-8"));
-
+        
         const execution = new MigrationExecution(this.listAdapters, this.knex, {
             cacheSchemaTableName: this._knexMigrationsOptions.schemaTableName,
-            spinner
+            spinner,
+            provider: this.isNotPostgres() ? 'mysql' : 'postgres',
+            schemaName: this.schemaName,
+            mode: options.mode,
+            sqlPath: options.sqlPath
         });
-
-        await execution.apply(migrations, JSON.stringify(schema.schema), schema.cmd, schema.id);
+        
+        await execution.apply(migrations, JSON.stringify(schema), 'forward', id);        
     }
 }
 
@@ -328,14 +340,14 @@ class MysqlCompatibleKnexListAdapter extends KnexListAdapter {
                     const { near, far } = this._getNearFar(adapter);
                     return this._query()
                         .insert(values.map(id => ({ [near]: itemId, [far]: id })))
-                        .into(tableName)
+                        .into(tableName);
                     //                        .returning(far);
                 } else {
 
                     return this._query()
                         .table(tableName)
                         .whereIn('id', values) // 1:N
-                        .update({ [columnName]: itemId })
+                        .update({ [columnName]: itemId });
                     //                        .returning('id');
                 }
             } else {
