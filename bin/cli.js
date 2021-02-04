@@ -59,6 +59,20 @@ const spinner = ora({
   isSilent: !!ciInfo.isCi,
 }).start();
 
+// Check for environment
+
+const environment = process.env.NODE_ENV || 'development';
+
+if(environment === "production") {
+    console.log("\n");
+    spinner.fail("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+    spinner.fail("@ PRODUCTION ENVIRONMENT DETECTED @");
+    spinner.fail("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@");
+    console.log("\n");
+    spinner.warn("It is recommended you review any migration with --mode sql or --mode ask before commiting to any change to your database schema.");
+    console.log("\n");
+}
+
 // Everything else is assumed to be a command we want to execute
 commandRunner
   .exec(args, commands, spinner)

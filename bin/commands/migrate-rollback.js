@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const chalk = require('chalk');
 const { DEFAULT_ENTRY } = require('@keystonejs/keystone');
@@ -6,6 +7,38 @@ const { asyncForEach } = require('@keystonejs/utils');
 
 const rollbackMigrations = async (args, entryFile, spinner) => {
 
+    if(typeof args['--mode'] !== "undefined" && !['migrate', 'sql', 'ask', 'silent'].includes(args['--mode'])) {
+        spinner.fail(chalk.red.bold(`Wrong --mode argument. Accepts: \`migrate\`, \`sql\`, \`ask\` and \`silent\``));
+        process.exit(1);
+    }
+
+    if(typeof args['--sqlPath'] === 'string') {
+
+        const filePath = path.resolve(args['--sqlPath']);
+
+        if(fs.existsSync(filePath)) {
+
+            try {                
+                fs.accessSync(filePath, fs.constants.W_OK);
+            } catch (err) {
+                spinner.fail(chalk.red.bold(`Wrong --sqlPath argument. File at ${args['--sqlPath']} is not writable.`));
+                process.exit(1);            
+            }                    
+        } else  {
+
+            const tmp = filePath.split(path.sep);
+            tmp.pop();
+            const filePathDir = tmp.join(path.sep);
+
+            try {                
+                fs.accessSync(filePathDir, fs.constants.W_OK);
+            } catch (err) {
+                spinner.fail(chalk.red.bold(`Wrong --sqlPath argument. File at ${args['--sqlPath']} is not writable.`));
+                process.exit(1);            
+            }                    
+        }
+    }
+    
     // Allow the spinner time to flush its output to the console.
     await new Promise(resolve => setTimeout(resolve, 100));
 
@@ -23,11 +56,11 @@ const rollbackMigrations = async (args, entryFile, spinner) => {
     await asyncForEach(Object.values(keystone.adapters), async adapter => {
 
         if (!adapter.rollbackMigrations) {
-            spinner.info(chalk.yellow.bold(`rollback-migrations requires the Knex Ext adapter`));            
+            spinner.info(chalk.yellow.bold(`migrate-rollback requires the Knex Ext adapter`));            
             return;
         }
         try {
-            await adapter.rollbackMigrations(spinner);
+            await adapter.rollbackMigrations(spinner, { mode: args['--mode'] || 'migrate', sqlPath: args['--sqlPath'] ? path.resolve(args['--sqlPath']) : undefined });
         } catch (e) {
             spinner.fail(chalk.red.bold(`Some error occurred`));
             console.log(e);
@@ -48,7 +81,7 @@ module.exports = {
     },
     help: ({ exeName }) => `
     Usage
-      $ ${exeName} migrations-rollback
+      $ ${exeName} migrate-rollback
 
     Options
       --entry       Entry file exporting keystone instance [${DEFAULT_ENTRY}]

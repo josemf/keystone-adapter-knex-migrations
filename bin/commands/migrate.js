@@ -6,9 +6,9 @@ const { getEntryFileFullPath } = require('@keystonejs/keystone/bin/utils');
 const { asyncForEach } = require('@keystonejs/utils');
 
 const createMigrations = async (args, entryFile, spinner) => {
-
-    if(typeof args['--mode'] !== "undefined" && !['migrate', 'sql', 'ask'].includes(args['--mode'])) {
-        spinner.fail(chalk.red.bold(`Wrong --mode argument. Accepts: \`migrate\`, \`sql\` and \`ask\``));
+    
+    if(typeof args['--mode'] !== "undefined" && !['migrate', 'sql', 'ask', 'silent'].includes(args['--mode'])) {
+        spinner.fail(chalk.red.bold(`Wrong --mode argument. Accepts: \`migrate\`, \`sql\`, \`ask\` and \`silent\``));
         process.exit(1);
     }
 
@@ -51,12 +51,14 @@ const createMigrations = async (args, entryFile, spinner) => {
         keystone = resolvedFromEntry.keystone;
     }
     
-    await keystone.connect(); // Need to do _createMigrations post connect so awaiting connect
+    await keystone.connect();
+    
     let errors = false;
+    
     await asyncForEach(Object.values(keystone.adapters), async adapter => {
 
         if (!adapter.migrate) {
-            spinner.info(chalk.yellow.bold(`create-migrations requires the Knex Ext adapter`));            
+            spinner.info(chalk.yellow.bold(`migrate requires the Knex Ext adapter`));            
             return;
         }
         try {
@@ -68,7 +70,9 @@ const createMigrations = async (args, entryFile, spinner) => {
         }
     });
     if (!errors) {
-        spinner.succeed(chalk.green.bold(`Done.`));
+        if(args['--mode'] !== "silent") {
+            spinner.succeed(chalk.green.bold(`Done.`));
+        }
         process.exit(0);
     }
     process.exit(1);
@@ -87,14 +91,13 @@ module.exports = {
 
     Options
       --entry       Entry file exporting keystone instance
-      --mode        Operation mode [migrate | sql | ask]
-      --sqlPath    Path to save SQL and DDL queries 
+      --mode        Operation mode [migrate | sql | ask | silent]
+      --sqlPath     Path to save SQL and DDL queries 
   `,
     exec: async (args, { exeName, _cwd = process.cwd() } = {}, spinner) => {
         spinner.text = 'Validating project entry file';
         const entryFile = await getEntryFileFullPath(args, { exeName, _cwd });
-        spinner.start(' ');
-        
+        spinner.start(' ');        
         return createMigrations(args, entryFile, spinner);
     },
 };
