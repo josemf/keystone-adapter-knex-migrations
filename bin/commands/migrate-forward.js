@@ -1,3 +1,4 @@
+const fs = require('fs');
 const path = require('path');
 const chalk = require('chalk');
 const { DEFAULT_ENTRY } = require('@keystonejs/keystone');
@@ -53,20 +54,21 @@ const forwardMigrations = async (args, entryFile, spinner) => {
     
     await keystone.connect();
     let errors = false;
-    await asyncForEach(Object.values(keystone.adapters), async adapter => {
 
-        if (!adapter.forwardMigrations) {
-            spinner.info(chalk.yellow.bold(`migrate-forward requires the Knex Ext adapter`));            
-            return;
-        }
-        try {
-            await adapter.forwardMigrations(spinner, { mode: args['--mode'] || 'migrate', sqlPath: args['--sqlPath'] ? path.resolve(args['--sqlPath']) : undefined });
-        } catch (e) {
-            spinner.fail(chalk.red.bold(`Some error occurred`));
-            console.log(e);
-            errors = true;
-        }
-    });
+    if (!keystone.adapter.forwardMigrations) {
+        spinner.info(chalk.yellow.bold(`migrate-forward requires the Knex Ext adapter`));            
+        return;
+    }
+
+    try {
+        await keystone.adapter.forwardMigrations(spinner, { mode: args['--mode'] || 'migrate', sqlPath: args['--sqlPath'] ? path.resolve(args['--sqlPath']) : undefined });
+
+    } catch (e) {
+        spinner.fail(chalk.red.bold(`Some error occurred`));
+        console.log(e);
+        errors = true;
+    }
+    
     if (!errors) {
         spinner.succeed(chalk.green.bold(`Done.`));
         process.exit(0);
@@ -78,13 +80,17 @@ module.exports = {
     // prettier-ignore
     spec: {
         '--entry':      String,
+        '--mode' :      String,
+        '--sqlPath':    String        
     },
     help: ({ exeName }) => `
     Usage
       $ ${exeName} migrate-forward
 
     Options
-      --entry       Entry file exporting keystone instance [${DEFAULT_ENTRY}]
+      --entry       Entry file exporting keystone instance
+      --mode        Operation mode [migrate | sql | ask | silent]
+      --sqlPath     Path to save 
   `,
     exec: async (args, { exeName, _cwd = process.cwd() } = {}, spinner) => {
         spinner.text = 'Validating project entry file';

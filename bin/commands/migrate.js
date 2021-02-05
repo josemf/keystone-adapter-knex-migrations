@@ -54,21 +54,20 @@ const createMigrations = async (args, entryFile, spinner) => {
     await keystone.connect();
     
     let errors = false;
-    
-    await asyncForEach(Object.values(keystone.adapters), async adapter => {
 
-        if (!adapter.migrate) {
-            spinner.info(chalk.yellow.bold(`migrate requires the Knex Ext adapter`));            
-            return;
-        }
-        try {
-            await adapter.migrate(spinner, { mode: args['--mode'] || 'migrate', sqlPath: args['--sqlPath'] ? path.resolve(args['--sqlPath']) : undefined });
-        } catch (e) {
-            spinner.fail(chalk.red.bold(`Some error occurred`));
-            console.log(e);
-            errors = true;
-        }
-    });
+    if (!keystone.adapter.migrate) {
+        spinner.info(chalk.yellow.bold(`migrate requires the Knex Ext adapter`));            
+        return;
+    }
+
+    try {
+        await keystone.adapter.migrate(spinner, { mode: args['--mode'] || 'migrate', sqlPath: args['--sqlPath'] ? path.resolve(args['--sqlPath']) : undefined });
+    } catch (e) {
+        spinner.fail(chalk.red.bold(`Some error occurred`));
+        console.log(e);
+        errors = true;
+    }
+    
     if (!errors) {
         if(args['--mode'] !== "silent") {
             spinner.succeed(chalk.green.bold(`Done.`));
@@ -83,16 +82,16 @@ module.exports = {
     spec: {
         '--entry':      String,
         '--mode' :      String,
-        '--sqlPath':   String
+        '--sqlPath':    String
     },
     help: ({ exeName }) => `
     Usage
-      $ ${exeName} migrate
+      $ keystone-knex migrate
 
     Options
       --entry       Entry file exporting keystone instance
       --mode        Operation mode [migrate | sql | ask | silent]
-      --sqlPath     Path to save SQL and DDL queries 
+      --sqlPath     Path to save SQL 
   `,
     exec: async (args, { exeName, _cwd = process.cwd() } = {}, spinner) => {
         spinner.text = 'Validating project entry file';

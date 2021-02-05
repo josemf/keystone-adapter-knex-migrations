@@ -67,27 +67,30 @@ class KnexAdapterExtended extends KnexAdapter {
         
         return false;
     }
-   
+
     async _createTables() {
         
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {
-            ignoreCacheSchema: true,
+            ignoreCacheSchema: process.env.NODE_ENV === "test",
+            cacheSchemaTableName: this._knexMigrationsOptions.schemaTableName,            
             mode: "silent"
         });
         
         const { migrations, schema } = await builder.build();
          
         const execution = new MigrationExecution(this.listAdapters, this.knex, {
-            ignoreCacheSchema: true,
+            ignoreCacheSchema: process.env.NODE_ENV === "test",            
+            cacheSchemaTableName: this._knexMigrationsOptions.schemaTableName,            
             mode: "silent",
+            provider: this.isNotPostgres() ? 'mysql' : 'postgres',            
             schemaName: this.schemaName
         });
         
-        await execution.apply(migrations, JSON.stringify(schema.schema), schema.cmd, schema.id);
+        await execution.apply(migrations, JSON.stringify(schema), schema.cmd, schema.id);
 
         return [];        
     }
-   
+    
     async migrate(spinner, options) {
         
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {

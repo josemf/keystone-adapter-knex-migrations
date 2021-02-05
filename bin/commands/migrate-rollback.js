@@ -53,20 +53,19 @@ const rollbackMigrations = async (args, entryFile, spinner) => {
 
     await keystone.connect();    
     let errors = false;
-    await asyncForEach(Object.values(keystone.adapters), async adapter => {
 
-        if (!adapter.rollbackMigrations) {
-            spinner.info(chalk.yellow.bold(`migrate-rollback requires the Knex Ext adapter`));            
-            return;
-        }
-        try {
-            await adapter.rollbackMigrations(spinner, { mode: args['--mode'] || 'migrate', sqlPath: args['--sqlPath'] ? path.resolve(args['--sqlPath']) : undefined });
-        } catch (e) {
-            spinner.fail(chalk.red.bold(`Some error occurred`));
-            console.log(e);
-            errors = true;
-        }
-    });
+    if (!keystone.adapter.rollbackMigrations) {
+        spinner.info(chalk.yellow.bold(`migrate-rollback requires the Knex Ext adapter`));            
+        return;
+    }
+    try {
+        await keystone.adapter.rollbackMigrations(spinner, { mode: args['--mode'] || 'migrate', sqlPath: args['--sqlPath'] ? path.resolve(args['--sqlPath']) : undefined });
+    } catch (e) {
+        spinner.fail(chalk.red.bold(`Some error occurred`));
+        console.log(e);
+        errors = true;
+    }
+
     if (!errors) {
         spinner.succeed(chalk.green.bold(`Done.`));
         process.exit(0);
@@ -78,13 +77,17 @@ module.exports = {
     // prettier-ignore
     spec: {
         '--entry':      String,
+        '--mode' :      String,
+        '--sqlPath':    String        
     },
     help: ({ exeName }) => `
     Usage
-      $ ${exeName} migrate-rollback
+      $ keystone-knex migrate-rollback
 
     Options
-      --entry       Entry file exporting keystone instance [${DEFAULT_ENTRY}]
+      --entry       Entry file exporting keystone instance
+      --mode        Operation mode [migrate | sql | ask | silent]
+      --sqlPath     Path to save SQL
   `,
     exec: async (args, { exeName, _cwd = process.cwd() } = {}, spinner) => {
         spinner.text = 'Validating project entry file';

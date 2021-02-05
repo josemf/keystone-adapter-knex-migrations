@@ -13,9 +13,10 @@
         "keystone-knex": "bin/cli.js"
     },
     "dependencies": {
-        "@keystonejs/adapter-knex": "^12.0.0",
-        "@keystonejs/keystone": "^17.0.0",
-        "@keystonejs/utils": "^6.0.0",
+        "@keystonejs/adapter-knex": "^13.0.0",
+        "@keystonejs/keystone": "^19.0.0",
+        "@keystonejs/utils": "^6.0.1",
+        "knex": "^0.21.16",        
         "arg": "^4.1.3",
         "chalk": "^4.1.0",
         "ci-info": "^2.0.0",
