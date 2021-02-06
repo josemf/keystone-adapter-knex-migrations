@@ -4,6 +4,8 @@
   <p><b>Brings MySQL support and database migrations to <a href="https://www.keystonejs.com/">KeystoneJS</a></b></p>
   <p><code>$ keystone-knex migrate</code></p>
 </div>
+
+
 ## Contents
 
 - [What's in](#whats-in)
@@ -13,6 +15,8 @@
 - [Testing](#testing)
 - [Contributing](#contributing)
 - [License](#license)
+
+
 
 ## What's in 
 
