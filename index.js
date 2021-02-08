@@ -90,11 +90,32 @@ class KnexAdapterExtended extends KnexAdapter {
 
         return [];        
     }
+
+    async migrateInit(spinner, options) {
+        const builder = new MigrationBuilder(this.listAdapters, this.knex, {
+            cacheSchemaTableName: this._knexMigrationsOptions.schemaTableName,
+            spinner,
+            mode: options.mode
+        });
+
+        const { migrations, schema } = await builder.buildInitial();
+        
+        const execution = new MigrationExecution(this.listAdapters, this.knex, {
+            cacheSchemaTableName: this._knexMigrationsOptions.schemaTableName,
+            spinner,
+            provider: this.isNotPostgres() ? 'mysql' : 'postgres',
+            schemaName: this.schemaName,
+            mode: options.mode,
+            sqlPath: options.sqlPath
+        });
+        
+        await execution.apply(migrations, JSON.stringify(schema), "initial", schema.id);        
+    }
     
     async migrate(spinner, options) {
         
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {
-            cacheSchemaTableName: DEFAULT_CACHE_SCHEMA_TABLE_NAME,
+            cacheSchemaTableName: this._knexMigrationsOptions.schemaTableName,
             spinner,
             mode: options.mode
         });
@@ -116,7 +137,7 @@ class KnexAdapterExtended extends KnexAdapter {
     async rollbackMigrations(spinner, options) {
         
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {
-            cacheSchemaTableName: DEFAULT_CACHE_SCHEMA_TABLE_NAME,
+            cacheSchemaTableName: this._knexMigrationsOptions.schemaTableName,
             spinner,
             mode: options.mode            
         });
@@ -138,7 +159,7 @@ class KnexAdapterExtended extends KnexAdapter {
     async forwardMigrations(spinner, options) {
         
         const builder = new MigrationBuilder(this.listAdapters, this.knex, {
-            cacheSchemaTableName: DEFAULT_CACHE_SCHEMA_TABLE_NAME,
+            cacheSchemaTableName: this._knexMigrationsOptions.schemaTableName,
             spinner,
             mode: options.mode
         });
