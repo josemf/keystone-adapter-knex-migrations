@@ -57,6 +57,8 @@ jobs:
 
       - name: Install Dependencies
         run: yarn
+      - name: Install Test Dependencies
+        run: cd tests/api-tests && yarn install       
       - name: Unit tests Mysql
         run: yarn jest --ci --maxWorkers=1 api-tests
         env:
