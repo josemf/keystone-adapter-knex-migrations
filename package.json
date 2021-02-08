@@ -1,14 +1,24 @@
 {
     "name": "keystone-adapter-knex-migrations",
     "version": "1.1.0",
-    "description": "Extends the knex adapter to provide a migrations command line tool",
+    "description": "Adds mysql support for knex adapter and database migrations tools",
+    "keywords": [
+        "keystone",
+        "keystonejs",
+        "adapter",
+        "mysql",        
+        "database",
+        "migrations",
+        "knex",
+        "incremental"        
+    ],
     "main": "index.js",
     "scripts": {
         "test-postgres": "cross-env TEST_ADAPTER=knex KNEX_URI=postgres://postgres:postgres@localhost/postgres DISABLE_LOGGING=true NODE_ENV=test jest --no-watchman --maxWorkers=1 --logHeapUsage",
         "test-mysql": "cross-env TEST_ADAPTER=knex_mysql DATABASE_HOST=localhost DATABASE_USER=root DATABASE_PASSWORD=mysql DATABASE_NAME=test DISABLE_LOGGING=true NODE_ENV=test jest --no-watchman --maxWorkers=1 --logHeapUsage"
     },
     "author": "josemf",
-    "license": "ISC",
+    "license": "MIT",
     "bin": {
         "keystone-knex": "bin/cli.js"
     },
