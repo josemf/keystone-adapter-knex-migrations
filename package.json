@@ -1,16 +1,16 @@
 {
     "name": "keystone-adapter-knex-migrations",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "description": "Adds mysql support for knex adapter and database migrations tools",
     "keywords": [
         "keystone",
         "keystonejs",
         "adapter",
-        "mysql",        
+        "mysql",
         "database",
         "migrations",
         "knex",
-        "incremental"        
+        "incremental"
     ],
     "main": "index.js",
     "scripts": {
