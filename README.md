@@ -5,7 +5,7 @@
   <p><code>$ keystone-knex migrate</code></p>
 </div>
 
-![CI](https://github.com/josemf/keystone-adapter-knex-migrations/workflows/Node.js%20CI/badge.svg)
+[![CI](https://github.com/josemf/keystone-adapter-knex-migrations/workflows/Node.js%20CI/badge.svg)](https://github.com/josemf/keystone-adapter-knex-migrations/actions)
 
 ## Contents
 
