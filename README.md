@@ -4,7 +4,7 @@
   <p><b>Brings MySQL support and database migrations to <a href="https://www.keystonejs.com/">KeystoneJS</a></b></p>
   <p><code>$ keystone-knex migrate</code></p>
 </div>
-
+[![CI](https://github.com/josemf/keystone-adapter-knex-migrations/workflows/Node.js CI/badge.svg)](https://github.com/josemf/keystone-adapter-knex-migrations/actions)
 
 ## Contents
 
